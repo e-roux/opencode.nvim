@@ -398,6 +398,178 @@ function M.dispose_instance(port, callback)
 end
 
 -- =============================================================================
+-- File Search APIs
+-- =============================================================================
+
+---@class opencode.cli.client.FindMatch
+---@field path string
+---@field lines string[]
+---@field line_number number
+---@field absolute_offset number
+---@field submatches string[]
+
+---Search for a pattern in files (like grep).
+---
+---@param port number
+---@param pattern string Regex pattern to search for
+---@param callback fun(matches: opencode.cli.client.FindMatch[])
+function M.find_pattern(port, pattern, callback)
+  M.call(port, "/find?pattern=" .. vim.uri_encode(pattern), "GET", nil, callback)
+end
+
+---@class opencode.cli.client.FindFileOpts
+---@field query string Search string (fuzzy match)
+---@field type? "file"|"directory" Limit results to file or directory
+---@field directory? string Override project root for search
+---@field limit? number Max results (1-200)
+
+---Search for files by name (fuzzy).
+---
+---@param port number
+---@param opts opencode.cli.client.FindFileOpts
+---@param callback fun(files: string[])
+function M.find_file(port, opts, callback)
+  local query_parts = { "query=" .. vim.uri_encode(opts.query) }
+  if opts.type then
+    table.insert(query_parts, "type=" .. opts.type)
+  end
+  if opts.directory then
+    table.insert(query_parts, "directory=" .. vim.uri_encode(opts.directory))
+  end
+  if opts.limit then
+    table.insert(query_parts, "limit=" .. opts.limit)
+  end
+  M.call(port, "/find/file?" .. table.concat(query_parts, "&"), "GET", nil, callback)
+end
+
+---@class opencode.cli.client.Symbol
+---@field name string
+---@field kind string
+---@field path string
+---@field line number
+---@field column number
+
+---Search for symbols by name.
+---
+---@param port number
+---@param query string Symbol name to search for
+---@param callback fun(symbols: opencode.cli.client.Symbol[])
+function M.find_symbol(port, query, callback)
+  M.call(port, "/find/symbol?query=" .. vim.uri_encode(query), "GET", nil, callback)
+end
+
+---@class opencode.cli.client.FileNode
+---@field name string
+---@field path string
+---@field type "file"|"directory"
+---@field children? opencode.cli.client.FileNode[]
+
+---List files/directories at a path.
+---
+---@param port number
+---@param path string Path to list
+---@param callback fun(nodes: opencode.cli.client.FileNode[])
+function M.get_file(port, path, callback)
+  M.call(port, "/file?path=" .. vim.uri_encode(path), "GET", nil, callback)
+end
+
+---@class opencode.cli.client.FileContent
+---@field content string
+---@field path string
+
+---Get file content.
+---
+---@param port number
+---@param path string Path to file
+---@param callback fun(file: opencode.cli.client.FileContent)
+function M.get_file_content(port, path, callback)
+  M.call(port, "/file/content?path=" .. vim.uri_encode(path), "GET", nil, callback)
+end
+
+---@class opencode.cli.client.FileStatus
+---@field path string
+---@field status string
+
+---Get status of modified files.
+---
+---@param port number
+---@param callback fun(files: opencode.cli.client.FileStatus[])
+function M.get_file_status(port, callback)
+  M.call(port, "/file/status", "GET", nil, callback)
+end
+
+-- =============================================================================
+-- LSP, Formatter & MCP APIs
+-- =============================================================================
+
+---@class opencode.cli.client.LSPStatus
+---@field name string
+---@field running boolean
+---@field languages string[]
+
+---Get LSP server status.
+---
+---@param port number
+---@param callback fun(lsp: opencode.cli.client.LSPStatus[])
+function M.get_lsp(port, callback)
+  M.call(port, "/lsp", "GET", nil, callback)
+end
+
+---@class opencode.cli.client.FormatterStatus
+---@field name string
+---@field running boolean
+---@field languages string[]
+
+---Get formatter status.
+---
+---@param port number
+---@param callback fun(formatters: opencode.cli.client.FormatterStatus[])
+function M.get_formatters(port, callback)
+  M.call(port, "/formatter", "GET", nil, callback)
+end
+
+---@class opencode.cli.client.MCPStatus
+---@field running boolean
+---@field tools string[]
+
+---Get MCP server status.
+---
+---@param port number
+---@param callback fun(mcp: table<string, opencode.cli.client.MCPStatus>)
+function M.get_mcp(port, callback)
+  M.call(port, "/mcp", "GET", nil, callback)
+end
+
+---Add/configure an MCP server.
+---
+---@param port number
+---@param name string MCP server name
+---@param config table MCP server configuration
+---@param callback? fun()
+function M.add_mcp(port, name, config, callback)
+  M.call(port, "/mcp", "POST", { name = name, config = config }, callback)
+end
+
+-- =============================================================================
+-- Logging API
+-- =============================================================================
+
+---@class opencode.cli.client.LogOpts
+---@field service string Service name
+---@field level "debug"|"info"|"warn"|"error"
+---@field message string Log message
+---@field extra? table Additional data
+
+---Send a log message to opencode.
+---
+---@param port number
+---@param opts opencode.cli.client.LogOpts
+---@param callback? fun(success: boolean)
+function M.log(port, opts, callback)
+  M.call(port, "/log", "POST", opts, callback)
+end
+
+-- =============================================================================
 -- TUI APIs
 -- =============================================================================
 ---@param port number
