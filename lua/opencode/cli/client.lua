@@ -170,7 +170,7 @@ end
 ---Call an opencode server endpoint.
 ---@param port number
 ---@param path string
----@param method "GET"|"POST"
+---@param method "GET"|"POST"|"PATCH"|"DELETE"
 ---@param body table|nil
 ---@param callback fun(response: table)|nil
 ---@return number job_id
@@ -179,7 +179,227 @@ function M.call(port, path, method, body, callback)
   return curl(url, method, body, callback)
 end
 
----@param text string
+-- =============================================================================
+-- Global APIs
+-- =============================================================================
+
+---@class opencode.cli.client.Health
+---@field healthy boolean
+---@field version string
+
+---Check server health.
+---
+---@param port number
+---@param callback fun(health: opencode.cli.client.Health)
+function M.get_health(port, callback)
+  M.call(port, "/global/health", "GET", nil, callback)
+end
+
+-- =============================================================================
+-- Config APIs
+-- =============================================================================
+
+---@class opencode.cli.client.Config
+---@field [string] any
+
+---Get current configuration.
+---
+---@param port number
+---@param callback fun(config: opencode.cli.client.Config)
+function M.get_config(port, callback)
+  M.call(port, "/config", "GET", nil, callback)
+end
+
+---Update configuration.
+---
+---@param port number
+---@param config opencode.cli.client.Config Partial config to merge
+---@param callback? fun(config: opencode.cli.client.Config)
+function M.patch_config(port, config, callback)
+  M.call(port, "/config", "PATCH", config, callback)
+end
+
+---@class opencode.cli.client.ProvidersResponse
+---@field providers opencode.cli.client.Provider[]
+---@field default table<string, string>
+
+---Get configured providers.
+---
+---@param port number
+---@param callback fun(response: opencode.cli.client.ProvidersResponse)
+function M.get_config_providers(port, callback)
+  M.call(port, "/config/providers", "GET", nil, callback)
+end
+
+-- =============================================================================
+-- Provider APIs
+-- =============================================================================
+
+---@class opencode.cli.client.Provider
+---@field id string
+---@field name string
+---@field models opencode.cli.client.Model[]
+
+---@class opencode.cli.client.Model
+---@field id string
+---@field name string
+
+---@class opencode.cli.client.ProviderListResponse
+---@field all opencode.cli.client.Provider[]
+---@field default table<string, string>
+---@field connected string[]
+
+---Get all providers with connection status.
+---
+---@param port number
+---@param callback fun(response: opencode.cli.client.ProviderListResponse)
+function M.get_providers(port, callback)
+  M.call(port, "/provider", "GET", nil, callback)
+end
+
+---@class opencode.cli.client.ProviderAuthMethod
+---@field type string
+---@field [string] any
+
+---Get authentication methods for all providers.
+---
+---@param port number
+---@param callback fun(auth: table<string, opencode.cli.client.ProviderAuthMethod[]>)
+function M.get_provider_auth(port, callback)
+  M.call(port, "/provider/auth", "GET", nil, callback)
+end
+
+-- =============================================================================
+-- Project APIs
+-- =============================================================================
+
+---@class opencode.cli.client.Project
+---@field id string
+---@field name string
+---@field path string
+
+---Get all projects.
+---
+---@param port number
+---@param callback fun(projects: opencode.cli.client.Project[])
+function M.get_projects(port, callback)
+  M.call(port, "/project", "GET", nil, callback)
+end
+
+---Get current project.
+---
+---@param port number
+---@param callback fun(project: opencode.cli.client.Project)
+function M.get_current_project(port, callback)
+  M.call(port, "/project/current", "GET", nil, callback)
+end
+
+-- =============================================================================
+-- VCS APIs
+-- =============================================================================
+
+---@class opencode.cli.client.VcsInfo
+---@field type string
+---@field branch string
+---@field commit string
+---@field dirty boolean
+
+---Get VCS information for current project.
+---
+---@param port number
+---@param callback fun(vcs: opencode.cli.client.VcsInfo)
+function M.get_vcs(port, callback)
+  M.call(port, "/vcs", "GET", nil, callback)
+end
+
+-- =============================================================================
+-- Session APIs
+-- =============================================================================
+
+---@class opencode.cli.client.CreateSessionOpts
+---@field parentID? string Parent session ID for forking
+---@field title? string Initial session title
+
+---Create a new session.
+---
+---@param port number
+---@param opts? opencode.cli.client.CreateSessionOpts
+---@param callback? fun(session: opencode.cli.client.Session)
+function M.create_session(port, opts, callback)
+  M.call(port, "/session", "POST", opts or {}, callback)
+end
+
+---Get a specific session by ID.
+---
+---@param port number
+---@param session_id string
+---@param callback fun(session: opencode.cli.client.Session)
+function M.get_session(port, session_id, callback)
+  M.call(port, "/session/" .. session_id, "GET", nil, callback)
+end
+
+---Delete a session.
+---
+---@param port number
+---@param session_id string
+---@param callback? fun(success: boolean)
+function M.delete_session(port, session_id, callback)
+  M.call(port, "/session/" .. session_id, "DELETE", nil, callback)
+end
+
+---@class opencode.cli.client.SessionStatus
+---@field [string] any
+
+---Get status for all sessions.
+---
+---@param port number
+---@param callback fun(status: table<string, opencode.cli.client.SessionStatus>)
+function M.get_session_status(port, callback)
+  M.call(port, "/session/status", "GET", nil, callback)
+end
+
+---Abort a running session.
+---
+---@param port number
+---@param session_id string
+---@param callback? fun(success: boolean)
+function M.abort_session(port, session_id, callback)
+  M.call(port, "/session/" .. session_id .. "/abort", "POST", nil, callback)
+end
+
+---Share a session.
+---
+---@param port number
+---@param session_id string
+---@param callback? fun(session: opencode.cli.client.Session)
+function M.share_session(port, session_id, callback)
+  M.call(port, "/session/" .. session_id .. "/share", "POST", nil, callback)
+end
+
+---Unshare a session.
+---
+---@param port number
+---@param session_id string
+---@param callback? fun(session: opencode.cli.client.Session)
+function M.unshare_session(port, session_id, callback)
+  M.call(port, "/session/" .. session_id .. "/share", "DELETE", nil, callback)
+end
+
+-- =============================================================================
+-- Instance APIs
+-- =============================================================================
+
+---Dispose the opencode instance.
+---
+---@param port number
+---@param callback? fun(success: boolean)
+function M.dispose_instance(port, callback)
+  M.call(port, "/instance/dispose", "POST", nil, callback)
+end
+
+-- =============================================================================
+-- TUI APIs
+-- =============================================================================
 ---@param port number
 ---@param callback fun(response: table)|nil
 function M.tui_append_prompt(text, port, callback)
